@@ -167,26 +167,40 @@ lm(tmax ~ tmin, data=weather_df) %>%
 ```
 
 
-bootstratp for R square
+bootstratp for R squared
 
 ```{r}
-weather_df %>% modelr::bootstrap(n=5000) %>% 
+r_df = weather_df %>% modelr::bootstrap(n=5000) %>% 
   mutate(
     models = map(strap, ~lm(tmax ~ tmin, data = .x)),
     results = map(models, broom::glance)
   ) %>% 
   select(results) %>% 
   unnest(results) %>% 
-  select(r.squared) %>% 
-  ggplot(aes(x = r.squared)) + geom_density()
+  select(r.squared)
+  
+
+
 ```
 
+Distribution of R squared
+
+```{r}
+  
+r_df %>%  ggplot(aes(x = r.squared)) + geom_density()
+```
+
+Confidence interval of R squared
+
+```{r}
+r_df$r.squared %>% quantile(probs =c(0.025, 0.975)) 
+```
 
 
 bootstrap for log(beta0*beta1)
 
 ```{r}
-weather_df %>% modelr::bootstrap(n=5000) %>% 
+log_df = weather_df %>% modelr::bootstrap(n=5000) %>% 
   mutate(
     models = map(strap, ~lm(tmax ~ tmin, data = .x)),
     results = map(models, broom::tidy)
@@ -203,14 +217,24 @@ weather_df %>% modelr::bootstrap(n=5000) %>%
     beta_0 = intercept,
     beta_1 = tmin,
     log = log(beta_0*beta_1)
-  ) %>% 
-  ggplot(aes(x=log))+geom_density()
+  ) 
 ```
 
 
+Distrbution of log(beta0*beta1)
 
 
+```{r}
+log_df %>% 
+  ggplot(aes(x=log))+geom_density()
+```
 
+Confidence interval of log(beta0*beta1)
+
+
+```{r}
+log_df$log %>% quantile(probs =c(0.025, 0.975)) 
+```
 
 
 
