@@ -1,0 +1,170 @@
+---
+title: "Homework 6"
+date: "12/5/2020"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(modelr)
+
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  outout.width = "90%"
+)
+theme_set(theme_minimal()+theme(legend.position = "bottom"))
+options(
+  ggplot2.continuous.colour="viridis",
+  ggplot2.continuous.fill="viridis"
+)
+scale_colour_discrete(scale_color_viridis_d())
+scale_fill_discrete(scale_fill_viridis_d())
+```
+
+# Problem 2
+
+```{r}
+baby_df = read.csv("./birthweight.csv") %>% 
+  mutate(
+    babysex = as.factor(case_when(
+      babysex == 1 ~ "male",
+      babysex == 2 ~ "female"
+    ))
+  )
+```
+
+
+## My model
+
+According to Love & Kinch (1965), the birth weight of baby is correlated with baby sex, the pre-pregnancy weight, height of mother, gestational age and maternal weight gain during pregnancy. 
+Therefore, `babysex`, `ppwt`,`mheight`,`momage`and `wtgain` are included in the model.
+
+Distribution of baby weight
+
+```{r}
+baby_df %>% ggplot(aes(x=bwt))+geom_density()
+```
+
+The baby birth weight is approximately normally distributed.
+
+Build model
+
+```{r}
+mymodel = lm(bwt ~ babysex + ppwt + mheight + momage + wtgain, data=baby_df)
+```
+
+Prediction & residual
+
+```{r}
+baby_df %>% 
+  modelr::add_residuals(mymodel) %>% 
+  modelr::add_predictions(mymodel) %>% 
+  ggplot(aes(x=pred, y=resid)) + geom_point() +geom_smooth()
+```
+
+
+## Model with length and sex
+
+Look at the data
+
+```{r}
+baby_df %>% 
+  ggplot(aes(x=blength,y=bwt))+
+  geom_point()
+
+baby_df %>% 
+  ggplot(aes(x=gaweeks,y=bwt))+
+  geom_point()
+```
+
+The plots suggests linear relationship
+
+```{r}
+sec_model = lm(bwt ~blength + gaweeks, data=baby_df)
+```
+
+
+## Model with interaction
+
+```{r}
+int_model = lm(bwt ~ bhead*blength*babysex,data=baby_df)
+summary(int_model)
+```
+
+goodness of fit
+```{r}
+cv_df = crossv_mc(baby_df,100) %>% 
+  mutate(
+    train = map(train,as_tibble),
+    test = map(test,as_tibble)
+  )
+```
+
+```{r}
+cb_df = cv_df %>% 
+  mutate(
+    my_model = map(train, ~lm(bwt ~ babysex + ppwt + mheight + momage + wtgain , data=.x)),
+    main_effect_model = map(train, ~lm(bwt ~blength + gaweeks, data=.x)),
+    int_model = map(train,~lm(bwt ~ bhead*blength*babysex,data=.x))
+  ) %>% 
+  mutate(
+    rmse_my_model = map2(my_model,test,~rmse(model=.x, data=.y)),
+    rmse_sec_model = map2(main_effect_model,test,~rmse(model=.x, data=.y)),
+    rmse_int_model = map2 (int_model,test,~rmse(model=.x, data=.y))
+  )
+```
+
+```{r}
+cb_df %>% select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_"
+  ) %>% 
+  mutate(model = fct_inorder(model),
+         rmse = as.double(rmse)
+         ) %>% 
+  ggplot(aes(x=model, y=rmse)) + geom_violin()
+```
+
+
+Based on this comparison, we can conclude that the third model with head circumference, length, sex, and all interactions is more appropriate. 
+
+
+# Problem 3
+
+Import data
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
